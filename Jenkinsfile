@@ -1,55 +1,35 @@
 pipeline {
-  // use Docker on the Jenkins host as the build agent
   agent {
     docker {
-      image 'node:20-alpine'
-      args  '-u root'        // run as root so npm can write to cache
+      image 'node:20.17.0'  // Updated to match your application's Node version
     }
   }
 
   environment {
-    APP_DIR      = 'frontend'
-    CACHE_DIR    = "${WORKSPACE}/.npm"
-    DOCKER_IMAGE = 'yourdockerhubid/yourapp:${BRANCH_NAME}'
+    IMAGE_NAME = "my-react-app"
+    CONTAINER_NAME = "react-container"
   }
 
   stages {
     stage('Checkout') {
       steps {
-        // defaults to checking out the whole repo
-        echo "Building branch ${env.BRANCH_NAME}"
+        checkout scm
       }
     }
 
-    stage('Install') {
+    stage('Build Docker Image') {
       steps {
-        dir("${APP_DIR}") {
-          // use a workspace‐local cache
-          sh "npm install --cache ${CACHE_DIR}"
-        }
+        sh 'docker build -t $IMAGE_NAME .'
       }
     }
 
-    stage('Build') {
+    stage('Run Docker Container') {
       steps {
-        dir("${APP_DIR}") {
-          sh 'npm run build'
-        }
+        sh '''
+          docker rm -f $CONTAINER_NAME || true
+          docker run -d --name $CONTAINER_NAME -p 3000:3000 $IMAGE_NAME
+        '''
       }
     }
-
-    stage('Dockerize') {
-      steps {
-        sh """
-          docker build \
-            -t ${DOCKER_IMAGE} \
-            -f ${APP_DIR}/Dockerfile \
-            .
-        """
-      }
-    }
-
-    // optionally push:
-    // stage('Push') { … }
   }
 }

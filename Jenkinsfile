@@ -1,12 +1,8 @@
 pipeline {
-  agent {
-    docker {
-      image 'node:20.17.0'  // Updated to match your application's Node version
-    }
-  }
+  agent any
 
   environment {
-    IMAGE_NAME = "my-react-app"
+    IMAGE_NAME     = "my-react-app"
     CONTAINER_NAME = "react-container"
   }
 
@@ -17,19 +13,27 @@ pipeline {
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Build & Push Docker Image') {
       steps {
-        sh 'docker build -t $IMAGE_NAME .'
+        script {
+          def img = docker.build(IMAGE_NAME)
+        }
       }
     }
 
-    stage('Run Docker Container') {
+    stage('Deploy (Run Container)') {
       steps {
-        sh '''
-          docker rm -f $CONTAINER_NAME || true
-          docker run -d --name $CONTAINER_NAME -p 3000:3000 $IMAGE_NAME
-        '''
+        script {
+          sh "docker rm -f ${CONTAINER_NAME} || true"
+          sh "docker run -d --name ${CONTAINER_NAME} -p 3000:80 ${IMAGE_NAME}"
+        }
       }
+    }
+  }
+
+  post {
+    always {
+      sh 'docker image prune -f'
     }
   }
 }

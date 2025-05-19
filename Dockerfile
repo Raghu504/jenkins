@@ -1,26 +1,12 @@
-# Use official Node.js Alpine image
-FROM node:20.11.1-alpine
-
-# Set working directory
+FROM node:20.17.0 AS builder
 WORKDIR /app
-
-# Copy dependency definitions
 COPY frontend/package*.json ./
-
-# Install dependencies
 RUN npm install
-
-# Copy frontend source
-COPY frontend ./
-
-# Build the app
+COPY frontend/ ./
 RUN npm run build
 
-# Install static file server
-RUN npm install -g serve
-
-# Expose port
-EXPOSE 3000
-
-# Run the app
-CMD ["serve", "-s", "build", "-l", "3000"]
+FROM nginx:alpine
+RUN rm -rf /usr/share/nginx/html/*
+COPY --from=builder /app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
